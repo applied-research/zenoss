@@ -7,7 +7,7 @@ from Products.Zuul.interfaces import IInfo
 from Products.Zuul.form import schema
 from Products.Zuul.utils import ZuulMessageFactory as _t
 
-class IJIRAActionContentInfo():
+class IJIRAActionContentInfo(IInfo):
 
     jira_instance = schema.TextLine(
         title = _t(u'JIRA Target Instance'),

@@ -4,14 +4,14 @@
     xmlns:zcml="http://namespaces.zope.org/zcml">
 
     <utility
-        factory=".actions.JIRAReporter"
+        factory=".actions.notification.JIRAReporter"
         provides="Products.ZenModel.interfaces.IAction"
         name="JIRAReporter"
         />
 
-    <adapter provides=".interfaces.IJIRAIssueContentInfo"
+    <adapter provides=".interfaces.IJIRAActionContentInfo"
              for="Products.ZenModel.NotificationSubscription.NotificationSubscription"
-             factory=".info.JIRAReporterContentInfo"
+             factory=".info.JIRAActionContentInfo"
              />
 
 </configure>

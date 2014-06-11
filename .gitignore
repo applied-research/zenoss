@@ -1,0 +1,6 @@
+.svn
+*.pyc
+*.pyo
+*.egg-info
+dist
+build

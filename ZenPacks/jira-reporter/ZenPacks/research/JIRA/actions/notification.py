@@ -6,14 +6,13 @@ import Globals
 
 from zope.interface import implements
 
-from Products.ZenUtils.Utils import sendEmail
 from Products.ZenModel.interfaces import IAction
 from Products.ZenModel.actions import IActionBase, TargetableAction, \
-    processTalSource, signalToContextDict, ActionExecutionException
+    processTalSource, ActionExecutionException
 
 from ZenPacks.research.JIRA.interfaces import IJIRAActionContentInfo
 
-class JIRAAction(IActionBase, TargetableAction):
+class JIRAReporter(IActionBase, TargetableAction):
     implements(IAction)
 
     id = 'JIRAReporter'
@@ -23,7 +22,7 @@ class JIRAAction(IActionBase, TargetableAction):
     shouldExecuteInBatch = False
 
     def __init__(self):
-        super(JIRAAction, self).__init__()
+        super(JIRAReporter, self).__init__()
 
     def setupAction(self, dmd):
         self.guidManager = GUIDManager(dmd)
@@ -98,10 +97,15 @@ class JIRAAction(IActionBase, TargetableAction):
         return ''.join((QUOTE, msg.replace(QUOTE, BACKSLASH + QUOTE), QUOTE))
 
     def updateContent(self, content=None, data=None):
-        super(AltEmailHostAction, self).updateContent(content, data)
+        super(JIRAReporter, self).updateContent(content, data)
 
         updates = dict()
-        properties = ['host', 'port', 'user', 'password', 'useTls', 'email_from']
+        properties = [
+            'jira_instance', 'issuetype', 'priority_key',
+            'issue_summary', 'issue_description',
+            'clear_issue_summary', 'customfield_keypairs'
+        ]
+
         for k in properties:
             updates[k] = data.get(k)
 
