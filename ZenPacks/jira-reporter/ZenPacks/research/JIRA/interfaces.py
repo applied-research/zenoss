@@ -1,0 +1,51 @@
+
+import Globals
+
+from zope.schema.vocabulary import SimpleVocabulary
+
+from Products.Zuul.interfaces import IInfo
+from Products.Zuul.form import schema
+from Products.Zuul.utils import ZuulMessageFactory as _t
+
+class IJIRAActionContentInfo():
+
+    jira_instance = schema.TextLine(
+        title = _t(u'JIRA Target Instance'),
+        description = _t(u'Base URL for JIRA instance to report issues'),
+    )
+
+    issuetype = schema.TextLine(
+        title = _t(u'IssueType'),
+        description = _t(u'Set IssueType'),
+    )
+
+    priority_key = schema.TextLine(
+        title = _t(u'Issue Priority'),
+        description = _t(u'Set issue priority (use Priority Key)'),
+    )
+
+    issue_summary = schema.TextLine(
+        title = _t(u'Issue Summary'),
+        description = _t(u'Set issue summary content'),
+    )
+
+    issue_description = schema.Text(
+        title = _t(u'Issue Description'),
+        description = _t(u'Set issue description content'),
+    )
+
+    clear_issue_summary = schema.TextLine(
+        title = _t(u'Issue Summary (on CLEAR)'),
+        description = _t(u'Set issue summary content when event cleared'),
+    )
+
+    customfield_keypairs = schema.Text(
+        title = _t(u'CustomField KeyPairs'),
+        description = _t(u'Define customfield keypair values (Format [json] : {"key1":"value1", ...})'),
+    )
+
+    event_rawdata = schema.Text(
+        title = _t(u'Event Raw Data'),
+        description = _t(u'Define event raw data (Format [json] : {"key1":"value1", ...}) default: will use raw EventObject'),
+    )
+
