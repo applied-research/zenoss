@@ -14,12 +14,27 @@ class IJIRAActionContentInfo(IInfo):
         description = _t(u'Base URL for JIRA instance to report issues'),
     )
 
-    issuetype = schema.TextLine(
+    jira_user = schema.TextLine(
+        title = _t(u'JIRA UserID'),
+        description = _t(u'Set JIRA reporter UserID'),
+    )
+
+    jira_password = schema.TextLine(
+        title = _t(u'JIRA Password'),
+        description = _t(u'Set JIRA reporter password'),
+    )
+
+    issue_project = schema.TextLine(
+        title = _t(u'JIRA Project'),
+        description = _t(u'Set Issue Project'),
+    )
+
+    issue_type = schema.TextLine(
         title = _t(u'IssueType'),
         description = _t(u'Set IssueType'),
     )
 
-    priority_key = schema.TextLine(
+    issue_priority_key = schema.TextLine(
         title = _t(u'Issue Priority'),
         description = _t(u'Set issue priority (use Priority Key)'),
     )
