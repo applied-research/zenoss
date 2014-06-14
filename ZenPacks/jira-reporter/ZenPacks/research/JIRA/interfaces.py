@@ -19,7 +19,7 @@ class IJIRAActionContentInfo(IInfo):
         description = _t(u'Set JIRA reporter UserID'),
     )
 
-    jira_password = schema.TextLine(
+    jira_password = schema.Password(
         title = _t(u'JIRA Password'),
         description = _t(u'Set JIRA reporter password'),
     )

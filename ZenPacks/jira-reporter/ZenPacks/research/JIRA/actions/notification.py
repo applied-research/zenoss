@@ -5,11 +5,13 @@ log = logging.getLogger("zen.zenactiond.research.JIRA")
 import Globals
 
 from zope.interface import implements
+
+from Products.ZenModel.UserSettings import GroupSettings
 from Products.ZenUtils.guid.guid import GUIDManager
 
 from Products.ZenModel.interfaces import IAction
 from Products.ZenModel.actions import IActionBase, TargetableAction, \
-    processTalSource, ActionExecutionException
+    ActionExecutionException, _signalToContextDict, processTalSource 
 
 from ZenPacks.research.JIRA.interfaces import IJIRAActionContentInfo
 
@@ -41,6 +43,7 @@ class JIRAReporter(IActionBase, TargetableAction):
         issueType = notification.content['issue_type']
         issuePriority = notification.content['issue_priority_key']
         customfields = notification.content['customfield_keypairs']
+        eventRawData = notification.content['event_rawdata']
 
         summary = ''
         description = ''
@@ -83,23 +86,39 @@ class JIRAReporter(IActionBase, TargetableAction):
 
         try:
             summary = processTalSource(summary, **environ)
+            log.debug('[research] summary : %s' % (summary))
         except Exception:
             raise ActionExecutionException(
                 '[tales] failed to process Summary')
 
         try:
             description = processTalSource(description, **environ)
+            log.debug('[research] description : %s' % (description))
         except Exception:
             raise ActionExecutionException(
                 '[tales] failed to process Description')
 
         try:
-            customfield = processTalSource(customfield, **environ)
+            customfields = processTalSource(customfields, **environ)
+            log.debug('[research] customfields : %s' % (customfields))
         except Exception:
             raise ActionExecutionException(
-                '[tales] failed to process Description')
+                '[tales] failed to process CustomField KeyPairs')
 
-        log.info("[research] event update reported : %s" % (jira_instance));
+        try:
+            eventRawData = processTalSource(eventRawData, **environ)
+            log.debug('[research] event raw data : %s' % (eventRawData))
+        except Exception:
+            raise ActionExecutionException(
+                '[tales] failed to process Event Raw Data')
+
+        log.info("[research] event update reported : %s" % (jiraURL));
+
+    def getActionableTargets(self, target):
+        ids = [target.id]
+        if isinstance(target, GroupSettings):
+            ids = [x.id for x in target.getMemberUserSettings()]
+        return ids
 
     def _escapeEvent(self, evt):
         """
