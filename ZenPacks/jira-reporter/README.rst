@@ -1,31 +1,19 @@
 ===============================================================================
-ZenPacks.zenoss.Notifications
+ZenPacks.research.JIRA
 ===============================================================================
 
 
 About
 -------------------------------------------------------------------------------
-This ZenPack adds new event notification actions that are used by the
-``zenactiond`` daemon.
-
+Derived from Zenoss Notification ZenPack (extended)
 
 Features
 -------------------------------------------------------------------------------
 
 The following event notification actions have been added:
 
-Alternate Email Host
-  This action allows for different email servers to be defined as
-  destinations, rather than just the ``Advanced`` -> ``Settings`` email
-  definition.
-
-Configurable SNMP Trap
-  This action allows for the port, community string, and SNMP protocol version
-  to be specified.
-
-User Command
-  This action allows for environment variables to be set, and also allows per-
-  user information to be extracted using TALES expressions.
+JIRAReporter
+  This action allows reporting Events into issues JIRA 
 
 
 Prerequisites
@@ -55,7 +43,7 @@ notification will result in an event sent to the event console as well as a
 message in the ``zenactiond.log`` file.
 
 
-Select the Alternate Email Host Action
+Select the JIRAReporter Action
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 This assumes that the appropriate triggers have already been set up.
@@ -67,63 +55,24 @@ This assumes that the appropriate triggers have already been set up.
 3. Click on the plus sign ('+') to add a new notification.
 
 4. From the dialog box, specify the name of the notification and select the
-   ``Alternate Email Host`` action.
+   ``JIRAReporter`` action.
 
 5. Enable the notification and add a trigger to be associated with this action.
 
 6. Click on the ``Contents`` tab.
 
-7. Fill in the settings for the email server, which are the same type as found
-   on the ``Advanced`` -> ``Settings`` page.
-
-8. Click on the ``Submit`` button.
-
-
-Select the Configurable SNMP Trap Action
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-This assumes that the appropriate triggers have already been set up.
-   
-1. Navigate to ``Events`` -> ``Triggers`` page.
-
-2. Click on the ``Notifications`` menu item.
-
-3. Click on the plus sign ('+') to add a new notification.
-
-4. From the dialog box, specify the name of the notification and select the
-   ``Configurable SNMP Trap`` action.
-
-5. Enable the notification and add a trigger to be associated with this action.
-
-6. Click on the ``Contents`` tab.
-
-7. Fill in the settings for the SNMP receiver: host, port, community string, and
-   SNMP version.
-
-8. Click on the ``Submit`` button.
-
-
-Select the User Command Action
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-This assumes that the appropriate triggers have already been set up.
-   
-1. Navigate to ``Events`` -> ``Triggers`` page.
-
-2. Click on the ``Notifications`` menu item.
-
-3. Click on the plus sign ('+') to add a new notification.
-
-4. From the dialog box, specify the name of the notification and select the
-   ``User Command`` action.
-
-5. Enable the notification and add a trigger to be associated with this action.
-
-6. Click on the ``Contents`` tab.
-
-7. Fill in the command for the commands. Note that the ``user`` variable is
-   available, and that environment variables can be specified. Environment
-   variables are semi-colon separated and consist of ``NAME=value`` items.
+7. Fill in the settings for the following: 
+   - JIRA Target Instance
+   - JIRA User (reporter)
+   - JIRA User Password
+   - JIRA Project
+   - JIRA IssueType
+   - JIRA Issue Priority (key)
+   - Issue Summary (use TALES for content formatting)
+   - Issue Description (use TALES for content formatting)
+   - Issue Clear Summary (comment on clear)
+   - CustomField (KeyValue Pairs, optional)
+   - Event RawData (optional)
 
 8. Click on the ``Submit`` button.
 
@@ -133,8 +82,10 @@ Installing
 
 Install the ZenPack via the command line and restart Zenoss::
 
-    zenpack --install ZenPacks.zenoss.Notifications-<version>.egg
+    zenpack --install ZenPacks.trendmicro.JIRA-<version>.egg
     zenoss restart
+    or
+    zopectl restart
 
 
 Removing
@@ -142,8 +93,10 @@ Removing
 
 To remove the ZenPack, use the following command::
 
-    zenpack --remove ZenPacks.zenoss.Notifications
+    zenpack --remove ZenPacks.trendmicro.JIRA
     zenoss restart
+    or
+    zopectl restart
 
 
 Troubleshooting
