@@ -49,7 +49,7 @@ class IJIRAActionContentInfo(IInfo):
         description = _t(u'Set issue description content'),
     )
 
-    clear_issue_summary = schema.TextLine(
+    clear_issue_summary = schema.Text(
         title = _t(u'Issue Summary (on CLEAR)'),
         description = _t(u'Set issue summary content when event cleared'),
     )
