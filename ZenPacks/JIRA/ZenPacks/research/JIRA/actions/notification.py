@@ -68,12 +68,12 @@ class JIRAReporter(IActionBase, TargetableAction):
         environ = {
             'dev': device, 'component': component, 'dmd': notification.dmd
         }
-        
+
         data = _signalToContextDict(
             signal, self.options.get('zopeurl'),
             notification, self.guidManager
         )
-        
+
         environ.update(data)
 
         if environ.get('evt', None):

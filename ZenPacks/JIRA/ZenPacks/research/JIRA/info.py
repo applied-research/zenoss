@@ -22,7 +22,7 @@ class JIRAActionContentInfo(InfoBase):
 
     issue_summary = ActionFieldProperty(IJIRAActionContentInfo, 'issue_summary')
     issue_description = ActionFieldProperty(IJIRAActionContentInfo, 'issue_description')
-    clear_issue_summary = ActionFieldProperty(IJIRAActionContentInfo, 'clear_issue_summary')
+    clear_issue_description = ActionFieldProperty(IJIRAActionContentInfo, 'clear_issue_description')
 
     customfield_keypairs= ActionFieldProperty(IJIRAActionContentInfo, 'customfield_keypairs')
     event_rawdata = ActionFieldProperty(IJIRAActionContentInfo, 'event_rawdata')
