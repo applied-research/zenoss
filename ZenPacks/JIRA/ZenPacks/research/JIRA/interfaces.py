@@ -64,3 +64,9 @@ class IJIRAActionContentInfo(IInfo):
         description = _t(u'Define event raw data (Format [json] : {"key1":"value1", ...}) default: will use raw EventObject'),
     )
 
+    service_group_root = schema.TextLine(
+        title = _t(u'Service Group Roots'),
+        description = _t(u'Service Group Roots (list separated by comma)'),
+        default = u'dcs, commercial, consumer, coretech, is'
+    )
+

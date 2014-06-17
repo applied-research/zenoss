@@ -27,3 +27,5 @@ class JIRAActionContentInfo(InfoBase):
     customfield_keypairs= ActionFieldProperty(IJIRAActionContentInfo, 'customfield_keypairs')
     event_rawdata = ActionFieldProperty(IJIRAActionContentInfo, 'event_rawdata')
 
+    service_group_root = ActionFieldProperty(IJIRAActionContentInfo, 'service_group_root')
+
