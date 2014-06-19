@@ -1,6 +1,7 @@
-.svn
+*.swp
 *.pyc
 *.pyo
 *.egg-info
+.svn
 dist
 build

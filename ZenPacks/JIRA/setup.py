@@ -8,6 +8,7 @@ AUTHOR = "concernedthirdparty"
 LICENSE = "GPLv2"
 NAMESPACE_PACKAGES = ['ZenPacks', 'ZenPacks.research']
 PACKAGES = ['ZenPacks', 'ZenPacks.research', 'ZenPacks.research.JIRA']
+#INSTALL_REQUIRES = ['requests', 'jira-python']
 INSTALL_REQUIRES = []
 COMPAT_ZENOSS_VERS = ">= 4.1"
 PREV_ZENPACK_NAME = ""
@@ -35,6 +36,7 @@ setup(
     version=VERSION,
     author=AUTHOR,
     license=LICENSE,
+    description='JIRA (Core) ZenPack',
 
     # This is the version spec which indicates what versions of Zenoss
     # this ZenPack is compatible with
