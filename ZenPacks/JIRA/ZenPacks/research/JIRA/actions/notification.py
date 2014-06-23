@@ -102,65 +102,29 @@ class JIRAReporter(IActionBase, TargetableAction):
 
         environ['user'] = getattr(self.dmd.ZenUsers, target, None)
 
-        try:
-            summary = processTalSource(summary, **environ)
-            log.debug('[research] summary : %s' % (summary))
-        except Exception:
-            if (device):
-                raise ActionExecutionException(
-                    '[tales] failed to process Summary')
-            else:
-                try:
-                    summary = '${evt/device} : ${evt/summary}'
-                    summary = processTalSource(summary, **environ)
-                    log.debug('[research] summary (evt) : %s' % (summary))
-                except Exception:
-                    raise ActionExecutionException(
-                        '[tales] failed to process Summary (evt)')
+        issueValues = {
+            'summary' : summary,
+            'description' : description,
+            'eventraw' : eventRawData,
+            'customfields' : customfields
+        }
 
-        try:
-            description = processTalSource(description, **environ)
-            log.debug('[research] description : %s' % (description))
-        except Exception:
-            if (device):
-                raise ActionExecutionException(
-                    '[tales] failed to process Description')
-            else:
-                try:
-                    description = '${evt/device} : ${evt/summary}'
-                    description = processTalSource(description, **environ)
-                    log.debug('[research] description : %s' % (description))
-                except Exception:
-                    raise ActionExecutionException(
-                        '[tales] failed to process Description (evt)')
+        log.debug('[research] base issue values : %s' % (issueValues))
 
-        try:
-            customfields = processTalSource(customfields, **environ)
-            log.debug('[research] customfields : %s' % (customfields))
-        except Exception:
-            raise ActionExecutionException(
-                '[tales] failed to process CustomField KeyPairs')
+        targetValues = {
+            'project' : issueProject,
+            'issuetype' : issueType,
+            'priority' : issuePriority
+        }
 
-        try:
-            eventRawData = processTalSource(eventRawData, **environ)
-            log.debug('[research] event raw data : %s' % (eventRawData))
-        except Exception:
-            raise ActionExecutionException(
-                '[tales] failed to process Event Raw Data')
+        log.debug('[research] base target values : %s' % (targetValues))
 
         self.connectJIRA(jiraURL, jiraUser, jiraPass)
 
-        baseHost = self.getBaseHost(environ) 
-        eventID = self.getEventID(environ)
-        deviceID = self.getDeviceID(environ)
-
-        issues = self.getEventIssues(issueProject, baseHost, eventID)
-        hasIssues = self.hasEventIssues(issueProject, baseHost, eventID)
-
         if (signal.clear):
-            self.clearEventIssue(notification, environ)
+            self.clearEventIssue(environ, targetValues, issueValues)
         else:
-            self.createEventIssue(notification, environ) 
+            self.createEventIssue(environ, targetValues, issueValues)
 
         log.info("[research] event update reported : %s" % (jiraURL));
 
@@ -228,11 +192,121 @@ class JIRAReporter(IActionBase, TargetableAction):
         finally:
             log.debug('[research] connection info (%s)' % (URL))
 
-    def createEventIssue(self, notification, data):
+    def setIssueValues(self, data, targetValues, issueValues):
+        log.debug('[research] process issue values')
+
+        if ('project' in targetValues):
+            issueValues['project'] = {
+                'key' : targetValues['project']
+            }
+        if ('issuetype' in targetValues):
+            issueValues['issuetype'] = {
+                'name' : targetValues['issuetype']
+            }
+
+        issueValues['summary'] = self.processEventFields(
+            data, issueValues['summary'], 'Summary'
+        )
+        issueValues['description'] = self.processEventFields(
+            data, issueValues['description'], 'Description'
+        )
+
+        log.debug('[research] issue values : %s' % (issueValues))
+
+        return issueValues
+
+    def setCustomFieldValues(self, data, targetValues, issueValues):
+        log.debug('[research] process customfield values')
+
+        customfields = issueValues['customfields']
+
+        if (customfields):
+            customfields = json.loads(issueValues['customfields'])
+        else:
+            customfields = {}
+
+        if ('priority' in targetValues):
+            customfields['Priority'] = targetValues['priority']
+
+        if ('eventraw' in issueValues):
+            customfields['Zenoss EventRAW'] = self.processEventFields(
+                data, issueValues['eventraw'], 'Event Raw Data'
+            )
+            del issueValues['eventraw']
+
+        log.debug('[research] customfield values : %s' % (customfields))
+
+        createmeta = self.jira.createmeta(
+            projectKeys = targetValues['project'],
+            issuetypeNames = targetValues['issuetype'],
+            expand = 'projects.issuetypes.fields'
+        )
+
+        issuetype = None
+        fields = None
+        if (createmeta):
+            if ('projects' in createmeta):
+                if ('issuetypes' in createmeta['projects'][0]):
+                    issuetype = createmeta['projects'][0]['issuetypes'][0]
+                    log.debug('[research] createmeta issuetype : available')
+            if (issuetype):
+                if ('fields' in issuetype):
+                    fields = issuetype['fields']
+                    log.debug('[research] createmeta fields : available')
+        else:
+            log.debug('[research] createmeta : NOT AVAILABLE')
+
+        if (fields):
+            for fKey, fAttr in fields.iteritems():
+                if ('name' in fAttr):
+                    if (fAttr['name'] in customfields):
+                        log.debug('[research] customfield found')
+                        if ('allowedValues' in fAttr):
+                            log.debug('[research] has customfield options')
+                            fieldValue = self.getCustomFieldOption(
+                                fAttr['allowedValues'],
+                                customfields[fAttr['name']]
+                            )
+                            issueValues[fKey] = fieldValue
+
+        del issueValues['customfields']
+
+        log.debug('[research] issue customfields : %s' % (issueValues))
+
+        return issueValues
+
+    def createEventIssue(self, data, targetValues, issueValues):
         log.debug('[research] create event issue')
 
-    def clearEventIssue(self, notification, data):
+        issueValues = self.setIssueValues(
+            data, targetValues, issueValues
+        )
+        issueValues = self.setCustomFieldValues(
+            data, targetValues, issueValues
+        )
+
+        project = targetValues['project']
+
+        eventID = self.getEventID(data)
+        baseHost = self.getBaseHost(data) 
+        deviceID = self.getDeviceID(data)
+
+        issues = self.getEventIssues(project, baseHost, eventID)
+        hasIssues = self.hasEventIssues(project, baseHost, eventID)
+
+        newissue = self.jira.create_issue(fields = issueValues)
+
+        log.info('[research] issue created : %s' % (newissue.key))
+
+    def clearEventIssue(self, data, targetValues, issueValues):
         log.debug('[research] clear event issue')
+
+        project = targetValues['project']
+
+        eventID = self.getEventID(data)
+        baseHost = self.getBaseHost(data) 
+
+        issues = self.getEventIssues(project, baseHost, eventID)
 
     def hasEventIssues(self, project, eventINS, eventID):
         log.debug('[research] has event issues')
@@ -240,25 +314,65 @@ class JIRAReporter(IActionBase, TargetableAction):
         issues = self.getEventIssues(project, eventINS, eventID)
 
         log.debug('[research] has event issues : %s' % (len(issues) > 0))
-        
+
         return (len(issues) > 0)
 
     def getEventIssues(self, project, eventINS, eventID):
         log.debug('[research] get event issues')
-        
+
+        issues = []
+
         if (eventID):
             issueFilter = '(project = "%s")'
             issueFilter += ' and ("Zenoss Instance" ~ "%s")'
             issueFilter += ' and ("Zenoss ID" ~ "%s")'
             issueFilter = issueFilter % (project, eventINS, eventID)
-            issues = self.jira.search_issues(issueFilter)
             log.debug('[research] event issue filter : %s' % (issueFilter))
-        else:
-            issues = []
 
-        log.debug('[research] event issues : %s' % (len(issues)))
+            try:
+                issues = self.jira.search_issues(issueFilter)
+                log.debug('[research] event issues : %s' % (len(issues)))
+            except JIRAError as jx:
+                log.error('[research] jira.error : %s' % (jx))
+            except Exception as ex:
+                log.error('[research] exception : %s' % (ex))
 
         return issues
+
+    def getCustomFieldOption(self, fieldOptions, value, exactMatch = False):
+        log.debug('[research] get customfield options')
+
+        if (not value):
+            return None
+
+        if (not fieldOptions):
+            return None 
+
+        bMatch = False
+
+        for av in fieldOptions:
+            if ('value' in av):
+                valueName = av['value']
+            elif ('name' in av):
+                valueName = av['name']
+            else:
+                continue
+
+            if (value.__class__.__name__ in ('str', 'unicode')):
+                if (exactMatch):
+                    if (valueName == value):
+                        bMatch = True
+                else:
+                    if (re.match(value, valueName, re.IGNORECASE)):
+                        bMatch = True
+
+            if (bMatch):
+                if ('id' in av):
+                    return {'id' : av['id']}
+                else:
+                    return valueName
+
+        return None
 
     def getEventID(self, data):
         log.debug('[research] get eventID')
@@ -286,14 +400,15 @@ class JIRAReporter(IActionBase, TargetableAction):
 
         return deviceID 
 
-    def processEventFields(self, content, data, name):
+    def processEventFields(self, data, content, name):
+        log.debug('[research] process TAL expressions')
 
         try:
             content = processTalSource(content, **data)
             log.debug('[research] %s : %s' % (name, content))
         except Exception:
             raise ActionExecutionException(
-                '[tales] failed to process %' % (name))
+                '[research] failed to process TAL in %s' % (name))
 
         return content
 
