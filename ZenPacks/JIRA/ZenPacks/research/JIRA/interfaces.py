@@ -32,6 +32,7 @@ class IJIRAActionContentInfo(IInfo):
     issue_type = schema.TextLine(
         title = _t(u'IssueType'),
         description = _t(u'Set IssueType'),
+        default = u'Incident',
     )
 
     issue_priority_key = schema.TextLine(
@@ -42,21 +43,25 @@ class IJIRAActionContentInfo(IInfo):
     issue_summary = schema.TextLine(
         title = _t(u'Issue Summary'),
         description = _t(u'Set issue summary content'),
+        default = u'Device : ${evt/device} (${evt/ipAddress}) | ${evt/summary}',
     )
 
     issue_description = schema.Text(
         title = _t(u'Issue Description'),
         description = _t(u'Set issue description content'),
+        default = u'',
     )
 
     clear_issue_description = schema.Text(
         title = _t(u'Descripton on CLEAR'),
         description = _t(u'Set issue comment content when event cleared'),
+        default = u'',
     )
 
     customfield_keypairs = schema.Text(
         title = _t(u'CustomField KeyPairs'),
         description = _t(u'Define customfield keypair values (Format [json] : {"key1":"value1", ...})'),
+        default = u'',
     )
 
     event_rawdata = schema.Text(
@@ -67,6 +72,6 @@ class IJIRAActionContentInfo(IInfo):
     service_group_root = schema.TextLine(
         title = _t(u'Service Group Roots'),
         description = _t(u'Service Group Roots (list separated by comma)'),
-        default = u'dcs, commercial, consumer, coretech, is'
+        default = u'^/(dcs|commercial|consumer|coretech|is)/(.*)'
     )
 

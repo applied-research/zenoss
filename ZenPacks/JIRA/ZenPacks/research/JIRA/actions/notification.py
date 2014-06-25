@@ -56,12 +56,13 @@ class JIRAReporter(IActionBase, TargetableAction):
         jiraURL = notification.content['jira_instance']
         jiraUser = notification.content['jira_user']
         jiraPass = notification.content['jira_password']
-        
+
         issueProject = notification.content['issue_project']
         issueType = notification.content['issue_type']
         issuePriority = notification.content['issue_priority_key']
         customfields = notification.content['customfield_keypairs']
         eventRawData = notification.content['event_rawdata']
+        serviceRoot = notification.content['service_group_root']
 
         summary = ''
         description = ''
@@ -114,7 +115,8 @@ class JIRAReporter(IActionBase, TargetableAction):
         targetValues = {
             'project' : issueProject,
             'issuetype' : issueType,
-            'priority' : issuePriority
+            'priority' : issuePriority,
+            'serviceroot' : serviceRoot 
         }
 
         log.debug('[research] base target values : %s' % (targetValues))
@@ -218,21 +220,29 @@ class JIRAReporter(IActionBase, TargetableAction):
     def setCustomFieldValues(self, data, targetValues, issueValues):
         log.debug('[research] process customfield values')
 
-        customfields = issueValues['customfields']
+        customfields = None
+        if ('customfields' in issueValues):
+            customfields = issueValues['customfields']
+            del issueValues['customfields']
 
         if (customfields):
-            customfields = json.loads(issueValues['customfields'])
+            customfields = json.loads(customfields)
         else:
             customfields = {}
 
         if ('priority' in targetValues):
             customfields['Priority'] = targetValues['priority']
 
+        if ('serviceroot' in targetValues):
+            customfields['Service'] = targetValues['serviceroot'] 
+
         if ('eventraw' in issueValues):
             customfields['Zenoss EventRAW'] = self.processEventFields(
                 data, issueValues['eventraw'], 'Event Raw Data'
             )
             del issueValues['eventraw']
+
+        customfields = self.setZenossFields(data, customfields)
 
         log.debug('[research] customfield values : %s' % (customfields))
 
@@ -261,19 +271,56 @@ class JIRAReporter(IActionBase, TargetableAction):
                 if ('name' in fAttr):
                     if (fAttr['name'] in customfields):
                         log.debug('[research] customfield found')
+                        fieldValue = customfields[fAttr['name']]
                         if ('allowedValues' in fAttr):
                             log.debug('[research] has customfield options')
                             fieldValue = self.getCustomFieldOption(
-                                fAttr['allowedValues'],
-                                customfields[fAttr['name']]
+                                fAttr['allowedValues'], fieldValue
+                            )
+                        if (fieldValue):
+                            log.debug('[research] cf (%s) set to %s' % (
+                                fAttr['name'], fieldValue)
                             )
                             issueValues[fKey] = fieldValue
-
-        del issueValues['customfields']
 
         log.debug('[research] issue customfields : %s' % (issueValues))
 
         return issueValues
+
+    def setZenossFields(self, data, customfields):
+        log.debug('[research] process customfield values')
+
+        if (not customfields):
+            customfields = {}
+
+        zEventID = self.getEventID(data)
+        if (zEventID):
+            customfields['Zenoss ID'] = zEventID
+
+        zDeviceID = self.getDeviceID(data)
+        if (zDeviceID):
+            customfields['Zenoss DevID'] = zDeviceID
+
+        zBaseURL = self.getBaseURL(data) 
+        if (zBaseURL):
+            customfields['Zenoss Instance'] = zBaseURL
+
+        zEnv = self.getEnvironment(data)
+        if (zEnv):
+            customfields['Environment'] = zEnv 
+
+        if ('Service' in customfields):
+            zSrvc = self.getServiceGroup(data, customfields['Service'])
+            if (zSrvc):
+                customfields['Service'] = zSrvc
+
+        zLoc = self.getLocation(data)
+        if (zLoc):
+            customfields['DataCenter'] = zLoc
+
+        log.debug('[research] Zenoss customfields : %s' % (customfields))
+
+        return customfields 
 
     def createEventIssue(self, data, targetValues, issueValues):
         log.debug('[research] create event issue')
@@ -281,15 +328,16 @@ class JIRAReporter(IActionBase, TargetableAction):
         issueValues = self.setIssueValues(
             data, targetValues, issueValues
         )
+
         issueValues = self.setCustomFieldValues(
             data, targetValues, issueValues
         )
 
-        project = targetValues['project']
-
         eventID = self.getEventID(data)
         baseHost = self.getBaseHost(data) 
         deviceID = self.getDeviceID(data)
+
+        project = targetValues['project']
 
         issues = self.getEventIssues(project, baseHost, eventID)
         hasIssues = self.hasEventIssues(project, baseHost, eventID)
@@ -339,7 +387,8 @@ class JIRAReporter(IActionBase, TargetableAction):
 
         return issues
 
-    def getCustomFieldOption(self, fieldOptions, value, exactMatch = False):
+    def getCustomFieldOption(
+        self, fieldOptions, value, defaultValue = '',  exactMatch = False):
         log.debug('[research] get customfield options')
 
         if (not value):
@@ -349,6 +398,8 @@ class JIRAReporter(IActionBase, TargetableAction):
             return None 
 
         bMatch = False
+        bDefault = False
+        matchValue = None
 
         for av in fieldOptions:
             if ('value' in av):
@@ -379,10 +430,8 @@ class JIRAReporter(IActionBase, TargetableAction):
 
         eventID = '${evt/evid}'
         try:
-            eventID = processTalSource(eventID, **data)
-            log.debug('[research] eventID : %s' % (eventID))
+            eventID = self.processEventFields(data, eventID, 'eventID')
         except Exception:
-            log.debug('[research] eventID : NOT AVAILABLE')
             eventID = ''
 
         return eventID 
@@ -392,36 +441,18 @@ class JIRAReporter(IActionBase, TargetableAction):
 
         deviceID = '${evt/device}'
         try:
-            deviceID = processTalSource(deviceID, **data)
-            log.debug('[research] deviceID : %s' % (deviceID))
+            deviceID = self.processEventFields(data, deviceID, 'deviceID')
         except Exception:
-            log.debug('[research] deviceID : NOT AVAILABLE')
             deviceID = ''
 
         return deviceID 
-
-    def processEventFields(self, data, content, name):
-        log.debug('[research] process TAL expressions')
-
-        try:
-            content = processTalSource(content, **data)
-            log.debug('[research] %s : %s' % (name, content))
-        except Exception:
-            raise ActionExecutionException(
-                '[research] failed to process TAL in %s' % (name))
-
-        return content
-
-    def processCustomFields(self):
-        pass
 
     def getBaseURL(self, data):
         log.debug('[research] get baseURL')
 
         baseURL = '${urls/baseUrl}'
         try:
-            baseURL = processTalSource(baseURL, **data)
-            log.debug('[research] baseURL : %s' % (baseURL))
+            baseURL = self.processEventFields(data, baseURL, 'baseURL')
         except Exception:
             baseURL = ''
 
@@ -429,7 +460,7 @@ class JIRAReporter(IActionBase, TargetableAction):
             baseURL = self.getSiteURI(baseURL)
 
         return baseURL
-        
+
     def getBaseHost(self, data):
         log.debug('[research] get baseHost')
 
@@ -438,6 +469,63 @@ class JIRAReporter(IActionBase, TargetableAction):
         baseHost = self.getBaseURL(data)
 
         return urlparse(baseHost).hostname
+
+    def getEnvironment(self, data):
+        log.debug('[research] get environment')
+
+        eventENV = '${dev/getProductionStateString}'
+        try:
+            eventENV = self.processEventFields(
+                data, eventENV, 'Event ENV (dev)'
+            )
+        except Exception:
+            eventENV = '${evt/prodState}'
+            try:
+                eventENV = self.processEventFields(
+                    data, eventENV, 'Event ENV (evt)'
+                )
+            except Exception:
+                eventENV = ''
+
+        return eventENV
+
+    def getServiceGroup(self, data, valuePattern):
+        log.debug('[research] get service group')
+
+        srvcGRP = '${evt/DeviceGroups}'
+        try:
+            srvcGRP = self.processEventFields(data, srvcGRP, 'Service')
+            srvcGRP = srvcGRP.split('|')
+        except Exception:
+            srvcGRP = []
+
+        for ix in range(len(srvcGRP)):
+            svcm = re.match(valuePattern, srvcGRP[ix], re.IGNORECASE)
+            if (svcm):
+                srvcGRP[ix] = '\(' + svcm.group(2) + '\)'
+            else:
+                srvcGRP[ix] = ''
+
+        srvcGRP.append('uncategorized')
+
+        srvcGRP = self.removeEmptyListElements(srvcGRP)
+
+        srvcGRP = '.*(' + '|'.join(srvcGRP) + ').*'
+
+        log.debug('[research] service group pattern : %s' % (srvcGRP))
+
+        return srvcGRP
+
+    def getLocation(self, data):
+        log.debug('[research] get location')
+
+        loc = '${evt/Location}'
+        try:
+            loc = self.processEventFields(data, loc, 'Location')
+        except Exception:
+            loc = ''
+
+        return loc
 
     def getSiteURI(self, source):
         outURI = re.findall("((http|https)://[a-zA-Z0-9-\.:]*)", source)
@@ -448,4 +536,50 @@ class JIRAReporter(IActionBase, TargetableAction):
                     outURI = outURI[0][0]
         outURI = urlparse(source)
         return "%s://%s" % (outURI.scheme, outURI.netloc)
+
+    def processEventFields(self, data, content, name):
+        log.debug('[research] process TAL expressions')
+
+        try:
+            content = processTalSource(content, **data)
+            log.debug('[research] %s : %s' % (name, content))
+        except Exception:
+            log.debug('[research] unable to process : %s' % (name))
+            raise ActionExecutionException(
+                '[research] failed to process TAL in %s' % (name))
+
+        if (content == 'None'):
+            content = ''
+
+        return content
+
+    def removeEmptyListElements(self, listObj):
+        log.debug('[research] remove empty list elements')
+
+        bDirty = True
+        for lx in range(len(listObj)): 
+            try:
+                ix = listObj.index('')
+                listObj[ix:ix + 1] = []
+            except Exception:
+                bDirty = False
+
+            try:
+                ix = listObj.index()
+                listObj[ix:ix + 1] = []
+                if (not bDirty):
+                    bDirty = True
+            except Exception:
+                if (not bDirty):
+                    bDirty = False
+
+            if (not bDirty):
+                break
+
+        return listObj
+
+    def processServiceGroupUsingRoot(self, serviceGroups, rootPattern):
+        log.debug('[research] filter service group values')
+
+        return serviceGroups
 
