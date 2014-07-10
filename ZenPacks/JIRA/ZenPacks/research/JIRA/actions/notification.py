@@ -124,6 +124,7 @@ class JIRAReporter(IActionBase, TargetableAction):
         self.connectJIRA(jiraURL, jiraUser, jiraPass)
 
         if (signal.clear):
+            log.debug('[research] event cleared')
             self.clearEventIssue(environ, targetValues, issueValues)
         else:
             self.createEventIssue(environ, targetValues, issueValues)
@@ -333,18 +334,19 @@ class JIRAReporter(IActionBase, TargetableAction):
             data, targetValues, issueValues
         )
 
+        project = targetValues['project']
+
         eventID = self.getEventID(data)
         baseHost = self.getBaseHost(data) 
         deviceID = self.getDeviceID(data)
 
-        project = targetValues['project']
-
-        issues = self.getEventIssues(project, baseHost, eventID)
         hasIssues = self.hasEventIssues(project, baseHost, eventID)
 
-        newissue = self.jira.create_issue(fields = issueValues)
-
-        log.info('[research] issue created : %s' % (newissue.key))
+        if (hasIssues):
+            log.info('[research] issue exists for EventID %s' % (eventID))
+        else:
+            newissue = self.jira.create_issue(fields = issueValues)
+            log.info('[research] issue created : %s' % (newissue.key))
 
     def clearEventIssue(self, data, targetValues, issueValues):
         log.debug('[research] clear event issue')
@@ -355,6 +357,21 @@ class JIRAReporter(IActionBase, TargetableAction):
         baseHost = self.getBaseHost(data) 
 
         issues = self.getEventIssues(project, baseHost, eventID)
+
+        issueValues = self.setIssueValues(
+            data, targetValues, issueValues
+        )
+
+        description = issueValues['description']
+
+        for issue in issues:
+            zenossCLR = self.getCustomFieldID(issue, 'Zenoss EventCLR')
+            if (zenossCLR):
+                issue.update(fields = {zenossCLR : eventCLR})
+                log.debug('[research] EventCLR updated')
+            if (description):
+                self.jira.add_comment(issue.key, description)
+                log.debug('[research] EventCLR commented')
 
     def hasEventIssues(self, project, eventINS, eventID):
         log.debug('[research] has event issues')
@@ -424,6 +441,19 @@ class JIRAReporter(IActionBase, TargetableAction):
                     return valueName
 
         return None
+
+    def getIssueCustomFieldID(self, issue, fieldName):
+        log.debug('[research] get issue customfield ID')
+
+        fieldID = ''
+
+        for field in issue.fields:
+            if (field['name'].lower() == fieldName.lower()):
+                log.debug('[research] customfield matched %s' % (fieldName))
+                fieldID = field['id']
+                break
+        
+        return fieldID
 
     def getEventID(self, data):
         log.debug('[research] get eventID')
