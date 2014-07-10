@@ -124,7 +124,6 @@ class JIRAReporter(IActionBase, TargetableAction):
         self.connectJIRA(jiraURL, jiraUser, jiraPass)
 
         if (signal.clear):
-            log.debug('[research] event cleared')
             self.clearEventIssue(environ, targetValues, issueValues)
         else:
             self.createEventIssue(environ, targetValues, issueValues)
@@ -326,14 +325,6 @@ class JIRAReporter(IActionBase, TargetableAction):
     def createEventIssue(self, data, targetValues, issueValues):
         log.debug('[research] create event issue')
 
-        issueValues = self.setIssueValues(
-            data, targetValues, issueValues
-        )
-
-        issueValues = self.setCustomFieldValues(
-            data, targetValues, issueValues
-        )
-
         project = targetValues['project']
 
         eventID = self.getEventID(data)
@@ -345,6 +336,13 @@ class JIRAReporter(IActionBase, TargetableAction):
         if (hasIssues):
             log.info('[research] issue exists for EventID %s' % (eventID))
         else:
+            issueValues = self.setIssueValues(
+                data, targetValues, issueValues
+            )
+            issueValues = self.setCustomFieldValues(
+                data, targetValues, issueValues
+            )
+
             newissue = self.jira.create_issue(fields = issueValues)
             log.info('[research] issue created : %s' % (newissue.key))
 
@@ -357,6 +355,10 @@ class JIRAReporter(IActionBase, TargetableAction):
         baseHost = self.getBaseHost(data) 
 
         issues = self.getEventIssues(project, baseHost, eventID)
+
+        if (not issues):
+            log.debug('[research] no issue mapped to clear')
+            return
 
         issueValues = self.setIssueValues(
             data, targetValues, issueValues
@@ -442,12 +444,12 @@ class JIRAReporter(IActionBase, TargetableAction):
 
         return None
 
-    def getIssueCustomFieldID(self, issue, fieldName):
+    def getCustomFieldID(self, issue, fieldName):
         log.debug('[research] get issue customfield ID')
 
         fieldID = ''
 
-        for field in issue.fields:
+        for field in self.jira.fields():
             if (field['name'].lower() == fieldName.lower()):
                 log.debug('[research] customfield matched %s' % (fieldName))
                 fieldID = field['id']
@@ -554,6 +556,10 @@ class JIRAReporter(IActionBase, TargetableAction):
             loc = self.processEventFields(data, loc, 'Location')
         except Exception:
             loc = ''
+
+        for locx in loc.split('/'):
+            if (locx):
+                return locx
 
         return loc
 
