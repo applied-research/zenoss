@@ -7,6 +7,10 @@ from Products.Zuul.interfaces import IInfo
 from Products.Zuul.form import schema
 from Products.Zuul.utils import ZuulMessageFactory as _t
 
+from zope.schema.vocabulary import SimpleVocabulary
+
+import textwrap
+
 class IJIRAActionContentInfo(IInfo):
 
     jira_instance = schema.TextLine(
@@ -49,13 +53,77 @@ class IJIRAActionContentInfo(IInfo):
     issue_description = schema.Text(
         title = _t(u'Issue Description'),
         description = _t(u'Set issue description content'),
-        default = u'',
+        default = textwrap.dedent(text = u'''
+        _master_ :  *Zenoss Instance*
+        _notification_ :  *${notification/name}*
+        _trigger_ :  *${trigger/name}*
+
+        *[ device information ]*
+
+        {quote}
+        _environment_ :  *${dev/getProductionStateString}*
+        _device_ :  *${evt/device}*
+        _ipaddress_ :  *${evt/ipAddress}*
+        {quote}
+
+        {quote}
+        _priority_ :  *${dev/getPriorityString}*
+        _icmp_ :  *${dev/getPingStatusString}*
+        {quote}
+
+        {quote}
+        _groups_ :  *${evt/DeviceGroups}*
+        _systems_ :  *${evt/Systems}*
+        _location_ :  *${evt/Location}*
+        {quote}
+
+        *[ event information ]*
+
+        {quote}
+        _component_ :  *${evt/component}*
+        _event class_ :  *${evt/eventClass}*
+        _event key_ : *${evt/eventKey}*
+        _message_ :  *${evt/message}*
+        {quote}
+
+        {quote}
+        _severity_ : *${evt/severity}*
+        _count_ : ${evt/count}
+        _detected_ :  *${evt/firstTime}*
+        _last_ : *${evt/lastTime}*
+        {quote}
+
+        {quote}
+        _agent_ :  *${evt/agent}*
+        _monitor_ :  *${evt/monitor}*
+        {quote}
+
+        _reference links_ :  [ [event details | ${urls/eventUrl}] | [device details | ${urls/deviceUrl}] | [device events | ${urls/eventsUrl}] ]
+
+        ''')
     )
 
     clear_issue_description = schema.Text(
         title = _t(u'Descripton on CLEAR'),
         description = _t(u'Set issue comment content when event cleared'),
-        default = u'',
+        default = textwrap.dedent(text = u'''
+        [ *event-cleared* ]
+
+        _notification_ :  *${notification/name}*
+        _trigger_ :  *${trigger/name}*
+
+        {quote}
+        _cleared by_ :  *${evt/clearid}*
+        _cleared at_ :  *${evt/stateChange}*
+        {quote}
+
+        {quote}
+        _monitor_ :  *${evt/monitor}*
+        _count_ :  *${evt/count}*
+        _last_ :  *${evt/lastTime}*
+        {quote}
+
+        ''')
     )
 
     customfield_keypairs = schema.Text(
