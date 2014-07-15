@@ -21,6 +21,9 @@ from ZenPacks.research.JIRA.interfaces import IJIRAActionContentInfo
 from jira.client import JIRA
 from jira.exceptions import JIRAError
 
+# import datetime
+from datetime import datetime
+
 # import urlparse
 from urlparse import urlparse
 
@@ -128,7 +131,7 @@ class JIRAReporter(IActionBase, TargetableAction):
         else:
             self.createEventIssue(environ, targetValues, issueValues)
 
-        log.info("[research] event update reported : %s" % (jiraURL));
+        log.debug("[research] event update reported : %s" % (jiraURL));
 
     def getActionableTargets(self, target):
         ids = [target.id]
@@ -281,6 +284,11 @@ class JIRAReporter(IActionBase, TargetableAction):
                             log.debug('[research] cf (%s) set to %s' % (
                                 fAttr['name'], fieldValue)
                             )
+                            try:
+                                if (fAttr['schema']['type'] in ['array']):
+                                    fieldValue = [fieldValue]
+                            except:
+                                pass
                             issueValues[fKey] = fieldValue
 
         log.debug('[research] issue customfields : %s' % (issueValues))
@@ -334,7 +342,7 @@ class JIRAReporter(IActionBase, TargetableAction):
         hasIssues = self.hasEventIssues(project, baseHost, eventID)
 
         if (hasIssues):
-            log.info('[research] issue exists for EventID %s' % (eventID))
+            log.warn('[research] issue exists for EventID %s' % (eventID))
         else:
             issueValues = self.setIssueValues(
                 data, targetValues, issueValues
@@ -357,7 +365,7 @@ class JIRAReporter(IActionBase, TargetableAction):
         issues = self.getEventIssues(project, baseHost, eventID)
 
         if (not issues):
-            log.debug('[research] no issue mapped to clear')
+            log.warn('[research] no issue mapped to clear : %s' % (eventID))
             return
 
         issueValues = self.setIssueValues(
@@ -366,14 +374,17 @@ class JIRAReporter(IActionBase, TargetableAction):
 
         description = issueValues['description']
 
+        eventCLR = self.getEventClearDate(data)
+
         for issue in issues:
             zenossCLR = self.getCustomFieldID(issue, 'Zenoss EventCLR')
+            issuekey = issue.key
             if (zenossCLR):
                 issue.update(fields = {zenossCLR : eventCLR})
-                log.debug('[research] EventCLR updated')
+                log.info('[research] EventCLR updated : %s' % (issuekey))
             if (description):
                 self.jira.add_comment(issue.key, description)
-                log.debug('[research] EventCLR commented')
+                log.info('[research] EventCLR commented : %s' % (issuekey))
 
     def hasEventIssues(self, project, eventINS, eventID):
         log.debug('[research] has event issues')
@@ -407,7 +418,8 @@ class JIRAReporter(IActionBase, TargetableAction):
         return issues
 
     def getCustomFieldOption(
-        self, fieldOptions, value, defaultValue = '',  exactMatch = False):
+        self, fieldOptions, value, defaultValue = '',
+        exactMatch = False, firstMatch = False):
         log.debug('[research] get customfield options')
 
         if (not value):
@@ -438,11 +450,13 @@ class JIRAReporter(IActionBase, TargetableAction):
 
             if (bMatch):
                 if ('id' in av):
-                    return {'id' : av['id']}
+                    matchValue = {'id' : av['id']}
                 else:
-                    return valueName
+                    matchValue = valueName
+                if (firstMatch):
+                    break
 
-        return None
+        return matchValue
 
     def getCustomFieldID(self, issue, fieldName):
         log.debug('[research] get issue customfield ID')
@@ -467,6 +481,33 @@ class JIRAReporter(IActionBase, TargetableAction):
             eventID = ''
 
         return eventID 
+
+    def getEventClearDate(self, data):
+        log.debug('[research] get event clear date')
+
+        eventCLR = '${evt/stateChange}'
+        try:
+            eventCLR = self.processEventFields(data, eventCLR, 'clear date')
+        except Exception:
+            eventCLR = ''
+
+        if (eventCLR):
+            try:
+                eventCLR = datatime.strptime(
+                    eventCLR, '%Y-%m-%d %H:%M:%S'
+                ).isoformat()[:19] + '.000+0000'
+            except:
+                try:
+                    eventCLR = datatime.strptime(
+                        eventCLR, '%Y-%m-%d %H:%M:%S.%f'
+                    ).isoformat()[:19] + '.000+0000'
+                except:
+                    eventCLR = ''
+
+        if (not eventCLR):
+            eventCLR = datetime.now().isoformat()[:19] + '.000+0000'
+
+        return eventCLR
 
     def getDeviceID(self, data):
         log.debug('[research] get deviceID')
@@ -531,20 +572,27 @@ class JIRAReporter(IActionBase, TargetableAction):
         except Exception:
             srvcGRP = []
 
+        extendGRP = []
+
         for ix in range(len(srvcGRP)):
             svcm = re.match(valuePattern, srvcGRP[ix], re.IGNORECASE)
             if (svcm):
-                srvcGRP[ix] = '\(' + svcm.group(2) + '\)'
-            else:
-                srvcGRP[ix] = ''
+                valGRP = svcm.group(2)
+                if (valGRP):
+                    valGRP = valGRP.split('/')
+                    for ex in range(len(valGRP)):
+                        extendGRP.append(
+                            '\(' + '/'.join(valGRP[:ex + 1]) + '\)'
+                        )
 
-        srvcGRP.append('uncategorized')
 
-        srvcGRP = self.removeEmptyListElements(srvcGRP)
+        extendGRP.append('uncategorized')
 
-        srvcGRP = '.*(' + '|'.join(srvcGRP) + ').*'
+        log.debug('[research] service group patterns : %s' % (extendGRP))
 
-        log.debug('[research] service group pattern : %s' % (srvcGRP))
+        srvcGRP = '.*(' + '|'.join(extendGRP) + ').*'
+
+        log.debug('[research] service pattern : %s' % (srvcGRP))
 
         return srvcGRP
 
@@ -566,10 +614,10 @@ class JIRAReporter(IActionBase, TargetableAction):
     def getSiteURI(self, source):
         outURI = re.findall("((http|https)://[a-zA-Z0-9-\.:]*)", source)
         if (outURI.__class__.__name__ in ['list']):
-            log.debug('[site.uri] -> %s' % (outURI)) 
             if (len(outURI) > 0):
                 if (len(outURI[0]) > 0):
                     outURI = outURI[0][0]
+        log.debug('[research] zenoss URL : %s' % (outURI)) 
         outURI = urlparse(source)
         return "%s://%s" % (outURI.scheme, outURI.netloc)
 

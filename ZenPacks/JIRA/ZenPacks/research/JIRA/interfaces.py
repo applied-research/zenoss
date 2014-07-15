@@ -54,6 +54,7 @@ class IJIRAActionContentInfo(IInfo):
         title = _t(u'Issue Description'),
         description = _t(u'Set issue description content'),
         default = textwrap.dedent(text = u'''
+        \\
         _master_ :  *Zenoss Instance*
         _notification_ :  *${notification/name}*
         _trigger_ :  *${trigger/name}*
@@ -88,7 +89,7 @@ class IJIRAActionContentInfo(IInfo):
 
         {quote}
         _severity_ : *${evt/severity}*
-        _count_ : ${evt/count}
+        _count_ : *${evt/count}*
         _detected_ :  *${evt/firstTime}*
         _last_ : *${evt/lastTime}*
         {quote}
@@ -99,7 +100,8 @@ class IJIRAActionContentInfo(IInfo):
         {quote}
 
         _reference links_ :  [ [event details | ${urls/eventUrl}] | [device details | ${urls/deviceUrl}] | [device events | ${urls/eventsUrl}] ]
-
+        \\
+        \\
         ''')
     )
 
@@ -107,6 +109,7 @@ class IJIRAActionContentInfo(IInfo):
         title = _t(u'Descripton on CLEAR'),
         description = _t(u'Set issue comment content when event cleared'),
         default = textwrap.dedent(text = u'''
+        \\
         [ *event-cleared* ]
 
         _notification_ :  *${notification/name}*
@@ -122,7 +125,7 @@ class IJIRAActionContentInfo(IInfo):
         _count_ :  *${evt/count}*
         _last_ :  *${evt/lastTime}*
         {quote}
-
+        \\
         ''')
     )
 
