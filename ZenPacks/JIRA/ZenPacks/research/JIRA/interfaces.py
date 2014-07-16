@@ -53,8 +53,7 @@ class IJIRAActionContentInfo(IInfo):
     issue_description = schema.Text(
         title = _t(u'Issue Description'),
         description = _t(u'Set issue description content'),
-        default = textwrap.dedent(text = u'''
-        \\
+        default = textwrap.dedent(text = u'''\\\\
         _master_ :  *Zenoss Instance*
         _notification_ :  *${notification/name}*
         _trigger_ :  *${trigger/name}*
@@ -100,16 +99,14 @@ class IJIRAActionContentInfo(IInfo):
         {quote}
 
         _reference links_ :  [ [event details | ${urls/eventUrl}] | [device details | ${urls/deviceUrl}] | [device events | ${urls/eventsUrl}] ]
-        \\
-        \\
-        ''')
+        \\\\
+        \\\\''')
     )
 
     clear_issue_description = schema.Text(
         title = _t(u'Descripton on CLEAR'),
         description = _t(u'Set issue comment content when event cleared'),
-        default = textwrap.dedent(text = u'''
-        \\
+        default = textwrap.dedent(text = u'''\\\\
         [ *event-cleared* ]
 
         _notification_ :  *${notification/name}*
@@ -125,8 +122,7 @@ class IJIRAActionContentInfo(IInfo):
         _count_ :  *${evt/count}*
         _last_ :  *${evt/lastTime}*
         {quote}
-        \\
-        ''')
+        \\\\''')
     )
 
     customfield_keypairs = schema.Text(
@@ -143,6 +139,6 @@ class IJIRAActionContentInfo(IInfo):
     service_group_root = schema.TextLine(
         title = _t(u'Service Group Roots'),
         description = _t(u'Service Group Roots (list separated by comma)'),
-        default = u'^/(dcs|commercial|consumer|coretech|is)/(.*)'
+        default = u'^/(dcs|commercial|consumer|coretech|is)/(.*);^uncategorised$',
     )
 

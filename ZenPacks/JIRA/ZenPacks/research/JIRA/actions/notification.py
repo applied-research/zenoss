@@ -428,9 +428,18 @@ class JIRAReporter(IActionBase, TargetableAction):
         if (not fieldOptions):
             return None 
 
-        bMatch = False
         bDefault = False
         matchValue = None
+
+        if (value.__class__.__name__ in ('str', 'unicode')):
+            value = value.split(';')
+            if (len(value) > 1):
+                defaultValue = value[1].strip()
+                log.debug('[research] option default : %s' % (defaultValue))
+            value = value[0].strip()
+
+        if (not value):
+            log.debug('[research] invalid option value : %s' % (value))
 
         for av in fieldOptions:
             if ('value' in av):
@@ -440,21 +449,35 @@ class JIRAReporter(IActionBase, TargetableAction):
             else:
                 continue
 
-            if (value.__class__.__name__ in ('str', 'unicode')):
-                if (exactMatch):
-                    if (valueName == value):
-                        bMatch = True
-                else:
+            if (value):
+                if (value.__class__.__name__ in ('str', 'unicode')):
+                    if (exactMatch):
+                        value = '^%s$' % (value)
                     if (re.match(value, valueName, re.IGNORECASE)):
-                        bMatch = True
+                        if ('id' in av):
+                            matchValue = {'id' : av['id']}
+                        else:
+                            matchValue = valueName
+                        if (firstMatch):
+                            break
 
-            if (bMatch):
-                if ('id' in av):
-                    matchValue = {'id' : av['id']}
-                else:
-                    matchValue = valueName
-                if (firstMatch):
-                    break
+            if (not defaultValue):
+                continue
+
+            if (defaultValue.__class__.__name__ in ('str', 'unicode')):
+                if (re.match(defaultValue, valueName, re.IGNORECASE)):
+                    bDefault = True
+                    if ('id' in av):
+                        defaultValue = {'id' : av['id']}
+                    else:
+                        defaultValue = valueName
+                    if (not value):
+                        break
+
+        if (not matchValue):
+            if (bDefault):
+                log.debug('[research] default option : %s' % (defaultValue))
+                matchValue = defaultValue
 
         return matchValue
 
@@ -573,24 +596,34 @@ class JIRAReporter(IActionBase, TargetableAction):
             srvcGRP = []
 
         extendGRP = []
+        defaultGRP = None
 
-        for ix in range(len(srvcGRP)):
-            svcm = re.match(valuePattern, srvcGRP[ix], re.IGNORECASE)
-            if (svcm):
-                valGRP = svcm.group(2)
-                if (valGRP):
-                    valGRP = valGRP.split('/')
-                    for ex in range(len(valGRP)):
-                        extendGRP.append(
-                            '\(' + '/'.join(valGRP[:ex + 1]) + '\)'
-                        )
+        valuePattern = valuePattern.split(';')
+        if (len(valuePattern) > 1):
+            defaultGRP = valuePattern[1].strip()
+        valuePattern = valuePattern[0].strip()
 
-
-        extendGRP.append('uncategorized')
+        if (valuePattern):
+            for ix in range(len(srvcGRP)):
+                svcm = re.match(valuePattern, srvcGRP[ix], re.IGNORECASE)
+                if (svcm):
+                    valGRP = svcm.group(2)
+                    if (valGRP):
+                        valGRP = valGRP.split('/')
+                        for ex in range(len(valGRP)):
+                            extendGRP.append(
+                                '\(' + '/'.join(valGRP[:ex + 1]) + '\)'
+                            )
 
         log.debug('[research] service group patterns : %s' % (extendGRP))
 
-        srvcGRP = '.*(' + '|'.join(extendGRP) + ').*'
+        if (extendGRP):
+            srvcGRP = '.*(' + '|'.join(extendGRP) + ').*'
+        else:
+            srvcGRP = ''
+
+        if (defaultGRP):
+            srvcGRP += ';' + defaultGRP
 
         log.debug('[research] service pattern : %s' % (srvcGRP))
 
